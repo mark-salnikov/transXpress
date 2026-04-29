@@ -327,11 +327,12 @@ rule trimmomatic_parallel:
       touch {output}
       exit 0
     fi
+    # adding -phred33 to help with handling AVITI data
     if [ ! -z "$R_READS" ]; then
-      trimmomatic PE -threads {threads} $F_READS $R_READS trimmomatic/{wildcards[job_index]}.R1-P.qtrim.fastq.gz trimmomatic/{wildcards[job_index]}.R1-U.qtrim.fastq.gz trimmomatic/{wildcards[job_index]}.R2-P.qtrim.fastq.gz trimmomatic/{wildcards[job_index]}.R2-U.qtrim.fastq.gz {config[trimmomatic_parameters]} &> {log}
+      trimmomatic PE -threads {threads} -phred33 $F_READS $R_READS trimmomatic/{wildcards[job_index]}.R1-P.qtrim.fastq.gz trimmomatic/{wildcards[job_index]}.R1-U.qtrim.fastq.gz trimmomatic/{wildcards[job_index]}.R2-P.qtrim.fastq.gz trimmomatic/{wildcards[job_index]}.R2-U.qtrim.fastq.gz {config[trimmomatic_parameters]} &> {log}
       echo $SAMPLE	$REPLICATE	trimmomatic/{wildcards[job_index]}.R1-P.qtrim.fastq.gz	trimmomatic/{wildcards[job_index]}.R2-P.qtrim.fastq.gz > {output} 2>> {log}
     else
-      trimmomatic SE -threads {threads} $F_READS trimmomatic/{wildcards[job_index]}.U.qtrim.fastq.gz {config[trimmomatic_parameters]} &> {log}
+      trimmomatic SE -threads {threads} -phred33 $F_READS trimmomatic/{wildcards[job_index]}.U.qtrim.fastq.gz {config[trimmomatic_parameters]} &> {log}
       echo $SAMPLE      $REPLICATE      trimmomatic/{wildcards[job_index]}.U.qtrim.fastq.gz > {output} 2>> {log}
     fi
     """
@@ -716,7 +717,7 @@ rule trinity_stats:
   conda:
     "envs/trinity_utils.yaml"
   params:
-    memory="2"
+    memory="4"
   threads:
     1
   shell:
@@ -747,13 +748,13 @@ rule busco:
   conda:
     "envs/busco.yaml"
   params:
-    memory="10"
+    memory="48"
   threads:
-    4
+    8
   shell:
     """
     lineage={config[lineage]} &> {log}
-    if [ -z "$lineage"] &>> {log}
+    if [ -z "$lineage" ] &>> {log}
     then &>> {log}
       busco -m transcriptome -i {input.transcriptome} -o {output.out_directory} --auto-lineage -c {threads} &>> {log}
     else &>> {log}
@@ -1387,7 +1388,7 @@ rule kallisto:
   conda:
     "envs/trinity_utils.yaml"
   params:
-    memory="16" # increased memory from 2 to 8 since it was not sufficient
+    memory="64" # increased memory from 16 to 64 since it was not sufficient
   threads:
     8
   shell:
@@ -1448,9 +1449,10 @@ rule download_sprot:
     1
   shell:
     """
-    wget --directory-prefix db "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz" &> {log}
+    wget --directory-prefix db "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz" &> {log}
     gunzip db/uniprot_sprot.fasta.gz &>> {log}
-    makeblastdb -in db/uniprot_sprot.fasta -dbtype prot &>> {log}
+    makeblastdb -in db/uniprot_sprot.fasta -dbtype prot &>> {log} 
+    # modified from "ftp://ftp.uniprot.org/..." to "https://ftp.uniprot.org/..."
     """
 
 
